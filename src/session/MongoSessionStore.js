@@ -1,5 +1,6 @@
 /* @flow */
 
+import getTime from 'date-fns/get_time';
 import isBefore from 'date-fns/is_before';
 import subMinutes from 'date-fns/sub_minutes';
 import { MongoClient } from 'mongodb';
@@ -8,6 +9,7 @@ import { type Session } from './Session';
 import { type SessionStore } from './SessionStore';
 
 type MongoCollection = {
+  find: (filter: Object) => { toArray: () => Promise<Array<any>> },
   findOne: (filter: Object) => Promise<{}>,
   updateOne: (filter: Object, data: Object, options: Object) => Promise<void>,
   remove: (filter: Object) => Promise<void>,
@@ -58,6 +60,23 @@ export default class MongoSessionStore implements SessionStore {
     } catch (e) {
       console.error(e);
       return null;
+    }
+  }
+
+  async all(): Promise<Array<?Session>> {
+    const expiredFilter = {
+      lastActivity: {
+        $gt: getTime(subMinutes(Date.now(), this._expiresIn)),
+      },
+    };
+
+    try {
+      const sessions = await this._sessions.find(expiredFilter).toArray();
+
+      return sessions;
+    } catch (e) {
+      console.error(e);
+      return [];
     }
   }
 
